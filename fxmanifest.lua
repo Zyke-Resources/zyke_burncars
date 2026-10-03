@@ -3,7 +3,7 @@ game "gta5"
 author "https://discord.zykeresources.com"
 description "Tamper with vehicle engines and set them on fire"
 lua54 "yes"
-version "1.0.2"
+version "2.0.0"
 
 shared_scripts {
     "@zyke_lib/imports.lua",
