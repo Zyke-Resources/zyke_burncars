@@ -118,6 +118,42 @@ local function getBoneOffset(vehicle, bone)
     return GetOffsetFromEntityGivenWorldCoords(vehicle, coords.x, coords.y, coords.z)
 end
 
+---@type table<integer, EngineLayout> @ Model hash -> where its engine and engine cover are
+local engineLayouts = {}
+
+-- Read from the model's bones, so add-on vehicles need no list: the engine bone tells which half the
+-- engine is in, and the cover is whichever of the bonnet and boot is hinged over that half. Some
+-- rear engined models name their engine cover the bonnet, and some have no cover that opens at all
+---@param vehicle integer
+---@return EngineLayout layout
+local function getEngineLayout(vehicle)
+    local model = GetEntityModel(vehicle)
+    local layout = engineLayouts[model]
+    if (layout) then return layout end
+
+    local min, max = GetModelDimensions(model)
+    local middle = (min.y + max.y) / 2
+    local engine = getBoneOffset(vehicle, "engine")
+    local rear = engine ~= nil and engine.y < middle
+    local doors = rear and {bootDoor, bonnetDoor} or {bonnetDoor, bootDoor}
+
+    layout = {rear = rear}
+
+    for i = 1, #doors do
+        local cover = getBoneOffset(vehicle, doors[i] == bonnetDoor and "bonnet" or "boot")
+
+        if (cover and GetIsDoorValid(vehicle, doors[i]) and (cover.y < middle) == rear) then
+            layout.door, layout.coverZ = doors[i], cover.z
+
+            break
+        end
+    end
+
+    engineLayouts[model] = layout
+
+    return layout
+end
+
 -- On the engine cover a little in from the bumper, at the height of the cover's hinge; a bike has
 -- its engine bone between the wheels
 ---@param vehicle integer
@@ -126,13 +162,11 @@ end
 local function getEngineOffset(vehicle)
     if (isBike(vehicle)) then return getBoneOffset(vehicle, "engine") or vector3(0.0, 0.0, 0.0), false end
 
-    local model = GetEntityModel(vehicle)
-    local min, max = GetModelDimensions(model)
-    local rear = IsRearEngineModel(model)
-    local cover = getBoneOffset(vehicle, rear and "boot" or "bonnet")
-    local y = rear and min.y + markerInset or max.y - markerInset
+    local min, max = GetModelDimensions(GetEntityModel(vehicle))
+    local layout = getEngineLayout(vehicle)
+    local y = layout.rear and min.y + markerInset or max.y - markerInset
 
-    return vector3(0.0, y, cover and cover.z or max.z * 0.4), rear
+    return vector3(0.0, y, layout.coverZ or max.z * 0.4), layout.rear
 end
 
 -- The ray may end on the vehicle's own body, since the marker sits on its engine cover
@@ -502,8 +536,8 @@ RegisterNetEvent("zyke_burncars:SetEngineCoverOpen", function(netId, open)
     local vehicle = Z.network.getEntity(netId)
     if (not vehicle or isBike(vehicle)) then return end
 
-    local door = IsRearEngineModel(GetEntityModel(vehicle)) and bootDoor or bonnetDoor
-    if (not GetIsDoorValid(vehicle, door)) then return end
+    local door = getEngineLayout(vehicle).door
+    if (not door) then return end
 
     if (open) then
         SetVehicleDoorOpen(vehicle, door, false, false)

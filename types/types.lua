@@ -4,6 +4,11 @@
 ---@field rear boolean @ The engine sits in the rear
 ---@field bike boolean
 
+---@class EngineLayout
+---@field rear boolean @ The engine sits in the rear half of the vehicle
+---@field door? integer @ Door index of the engine cover, nil when the model has none that opens
+---@field coverZ? number @ Height of the engine cover's hinge, local to the vehicle
+
 ---@class PendingTamper
 ---@field vehicle integer
 ---@field netId NetId

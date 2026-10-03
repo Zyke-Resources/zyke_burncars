@@ -9,7 +9,7 @@ Carry the items from `Config.Settings.itemsNeeded` and aim at the marker on a ve
 
 The tamper runs in three steps under one progress bar: working the engine cover open, pouring in the lighter fluid from a tin, then rolling the lighter and touching its flame to the fluid, which catches in the engine bay and burns until the engine fire takes over. Both props are streamed by the resource (`zyke_lighter_fluid` and `zyke_lighter`) and every nearby player sees them in the hand.
 
-Every tamper is validated on the server, which uses up the items and burns the vehicle on the client that owns it, so everyone sees the fire. Rear engined vehicles are listed under `Config.Settings.rearEngineVehicles`.
+Every tamper is validated on the server, which uses up the items and burns the vehicle on the client that owns it, so everyone sees the fire. Whether the engine sits in the front or the rear is read from the vehicle model itself, so add-on vehicles need no setup.
 
 ### Ignored vehicles
 Some vehicles should never be touched, such as showroom and garage display cars. They get no marker at all and the server refuses them.

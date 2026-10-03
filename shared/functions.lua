@@ -9,15 +9,9 @@ local requirements = Config.Settings.requirements
 
 ---@type table<integer, true> @ Model hash -> protected from burning
 local disabledModels = {}
----@type table<integer, true> @ Model hash -> engine in the rear
-local rearEngineModels = {}
 
 for i = 1, #Config.Settings.disabledVehicles do
     disabledModels[joaat(Config.Settings.disabledVehicles[i])] = true
-end
-
-for i = 1, #Config.Settings.rearEngineVehicles do
-    rearEngineModels[joaat(Config.Settings.rearEngineVehicles[i])] = true
 end
 
 -- Set through the SetVehicleIgnored export by resources that spawn vehicles nobody should burn
@@ -55,12 +49,6 @@ function SetVehicleIgnored(vehicle, ignored)
 end
 
 exports("SetVehicleIgnored", SetVehicleIgnored)
-
----@param model integer
----@return boolean rear
-function IsRearEngineModel(model)
-    return rearEngineModels[model] == true
-end
 
 -- Clients read the class directly; the server has no class native, so zyke_lib looks it up from a client
 ---@param vehicle integer
