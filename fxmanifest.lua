@@ -1,24 +1,33 @@
 fx_version "cerulean"
 game "gta5"
 author "https://discord.zykeresources.com"
+description "Tamper with vehicle engines and set them on fire"
 lua54 "yes"
 version "1.0.2"
 
-shared_script "@zyke_lib/imports.lua"
+shared_scripts {
+    "@zyke_lib/imports.lua",
+    "shared/config.lua",
+    "shared/functions.lua",
+}
+
+client_scripts {
+    "client/movement.lua",
+    "client/props.lua",
+    "client/main.lua",
+}
+
+server_scripts {
+    "server/can_checks.lua",
+    "server/hooks.lua",
+    "server/main.lua",
+}
 
 files {
-    "client.lua",
-    "config.lua",
-
     "locales/*.lua",
+    "stream/zyke_burncars.ytyp",
 }
 
-loader {
-    "shared:@ox_lib/init.lua", -- Progressbar
-    "shared:config.lua",
-    "server.lua",
-    "client.lua",
-}
+data_file "DLC_ITYP_REQUEST" "stream/zyke_burncars.ytyp"
 
 dependency "zyke_lib"
-dependency "ox_lib"
