@@ -11,6 +11,13 @@ The tamper runs in three steps under one progress bar: working the engine cover 
 
 Every tamper is validated on the server, which uses up the items and burns the vehicle on the client that owns it, so everyone sees the fire. Rear engined vehicles are listed under `Config.Settings.rearEngineVehicles`.
 
+### Ignored vehicles
+Some vehicles should never be touched, such as showroom and garage display cars. They get no marker at all and the server refuses them.
+
+- Vehicles that only exist on one client (not networked) are always skipped.
+- `Config.Settings.ignoreStates` lists state bags that mark a vehicle as ignored. `zyke_garages:ignore` and `interiorDisplay` from zyke_garages are in there by default, which covers zyke_dealerships showrooms.
+- Other resources can mark their own vehicles: `exports["zyke_burncars"]:SetVehicleIgnored(vehicle, true)`, from the server or from the client that owns the vehicle. `exports["zyke_burncars"]:IsVehicleIgnored(vehicle)` reads it.
+
 ### Server hooks
 - `server/can_checks.lua`: `CanBurnVehicle` allows or denies a tamper, for jobs, gangs or cooldowns.
 - `server/hooks.lua`: `OnVehicleBurned` runs for every burned vehicle, for rewards, dispatch alerts or logs.

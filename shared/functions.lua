@@ -20,6 +20,42 @@ for i = 1, #Config.Settings.rearEngineVehicles do
     rearEngineModels[joaat(Config.Settings.rearEngineVehicles[i])] = true
 end
 
+-- Set through the SetVehicleIgnored export by resources that spawn vehicles nobody should burn
+local ignoreState = "zyke_burncars:ignore"
+local ignoreStates = Config.Settings.ignoreStates
+
+-- Ignored vehicles are left alone completely, unlike protected ones, which still explain themselves
+---@param vehicle integer
+---@return boolean ignored
+function IsVehicleIgnored(vehicle)
+    if (not DoesEntityExist(vehicle)) then return false end
+
+    local state = Entity(vehicle).state
+    if (state[ignoreState] == true) then return true end
+
+    for i = 1, #ignoreStates do
+        if (state[ignoreStates[i]] == true) then return true end
+    end
+
+    return false
+end
+
+exports("IsVehicleIgnored", IsVehicleIgnored)
+
+-- Set on the server, or on the client that owns the vehicle, for the state to reach everyone
+---@param vehicle integer
+---@param ignored boolean
+---@return boolean applied
+function SetVehicleIgnored(vehicle, ignored)
+    if (not DoesEntityExist(vehicle)) then return false end
+
+    Entity(vehicle).state:set(ignoreState, ignored == true or nil, true)
+
+    return true
+end
+
+exports("SetVehicleIgnored", SetVehicleIgnored)
+
 ---@param model integer
 ---@return boolean rear
 function IsRearEngineModel(model)
@@ -54,7 +90,7 @@ end
 ---@param vehicle integer
 ---@return "vehicleProtected" | "engineDestroyed" | "vehicleMoving" | "vehicleOccupied" | "vehicleRunning" | nil reason
 function GetBurnBlockReason(vehicle)
-    if (isVehicleProtected(vehicle)) then return "vehicleProtected" end
+    if (IsVehicleIgnored(vehicle) or isVehicleProtected(vehicle)) then return "vehicleProtected" end
     if (GetVehicleEngineHealth(vehicle) <= 0.0) then return "engineDestroyed" end
     if (#GetEntityVelocity(vehicle) > maxSpeed) then return "vehicleMoving" end
     if (requirements.emptyVehicle and isVehicleOccupied(vehicle)) then return "vehicleOccupied" end

@@ -193,9 +193,13 @@ local function refreshMarkers()
     local vehicles = GetGamePool("CVehicle")
     local nearby = {}
 
+    -- Vehicles only this client knows about, such as showroom cars, can't be validated by the server,
+    -- and ignored ones are left alone completely
     for i = 1, #vehicles do
-        if (#(GetEntityCoords(vehicles[i]) - pedCoords) <= searchDistance) then
-            nearby[#nearby + 1] = vehicles[i]
+        local vehicle = vehicles[i]
+
+        if (#(GetEntityCoords(vehicle) - pedCoords) <= searchDistance and NetworkGetEntityIsNetworked(vehicle) and not IsVehicleIgnored(vehicle)) then
+            nearby[#nearby + 1] = vehicle
         end
     end
 

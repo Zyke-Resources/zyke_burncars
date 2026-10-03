@@ -29,6 +29,14 @@ Config.Settings = {
     -- Storing and taking a vehicle out of a garage spawns a new entity, which starts without a cooldown
     cooldown = 900,
 
+    -- Vehicles carrying any of these state bags as true are left alone completely: no marker, and the
+    -- server refuses them. Other resources can mark their vehicles through the SetVehicleIgnored
+    -- export instead, see the README
+    ignoreStates = {
+        "zyke_garages:ignore", -- Showroom, preview and other vehicles zyke_garages is told to skip
+        "interiorDisplay", -- Vehicles on display inside zyke_garages interiors
+    },
+
     -- Vehicle classes that can't be set on fire, which also covers add-on vehicles in them
     -- Class ids: https://docs.fivem.net/natives/?_0x29439776AAA00A62
     disabledClasses = {
