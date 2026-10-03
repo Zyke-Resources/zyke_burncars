@@ -1,3 +1,5 @@
+# [> Download](https://github.com/ZykeWasTaken/zyke_burncars/releases/latest)
+
 ## Dependencies
 - https://github.com/ZykeWasTaken/zyke_lib (2.11.3 or newer, for interest point markers)
 
