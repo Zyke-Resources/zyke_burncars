@@ -1,6 +1,7 @@
 -- Marks the engine of nearby vehicles while the player carries the needed items; aiming at one shows
 -- the tamper key there through zyke_lib interest points, and pressing it walks the player up to the
--- engine to work on it. The server validates the tamper and burns the vehicle on its owner
+-- engine to work on it. With the target interaction a target menu option starts the tamper instead.
+-- The server validates the tamper and burns the vehicle on its owner
 
 local tamperKey = "zyke_burncars_tamper"
 local cancelKey = "zyke_burncars_cancel"
@@ -184,6 +185,21 @@ local function isPointVisible(point, vehicle, origin, ped)
     return #(hitCoords - point) <= sightTolerance
 end
 
+---@param vehicle integer
+---@return TamperTarget target
+local function createTarget(vehicle)
+    local offset, rear = getEngineOffset(vehicle)
+
+    return {vehicle = vehicle, offset = offset, rear = rear, bike = isBike(vehicle)}
+end
+
+-- A wrecked engine has nothing left to burn, so it is never offered
+---@param reason? string @ Locale key for why the vehicle can't be tampered with
+---@return boolean offered
+local function isEngineOffered(reason)
+    return reason ~= "engineDestroyed" and (not reason or Config.Settings.alwaysShowMarkers)
+end
+
 ---@param markers InterestPoint[]
 ---@param vehicle integer
 ---@param reason? string @ Locale key for why the vehicle can't be tampered with
@@ -191,13 +207,14 @@ end
 ---@param origin vector3
 ---@param ped integer
 local function addEngineMarker(markers, vehicle, reason, pedCoords, origin, ped)
-    local offset, rear = getEngineOffset(vehicle)
+    local target = createTarget(vehicle)
+    local offset = target.offset
     local point = GetOffsetFromEntityInWorldCoords(vehicle, offset.x, offset.y, offset.z)
     if (#(point - pedCoords) > markerDistance or not isPointVisible(point, vehicle, origin, ped)) then return end
 
     local id = tostring(vehicle)
 
-    targets[id] = {vehicle = vehicle, offset = offset, rear = rear, bike = isBike(vehicle)}
+    targets[id] = target
     markers[#markers + 1] = {
         id = id,
         entity = vehicle,
@@ -247,8 +264,7 @@ local function refreshMarkers()
         local vehicle = nearby[i]
         local reason = GetBurnBlockReason(vehicle)
 
-        -- A wrecked engine has nothing left to burn, so it gets no marker at all
-        if (reason ~= "engineDestroyed" and (not reason or Config.Settings.alwaysShowMarkers)) then
+        if (isEngineOffered(reason)) then
             addEngineMarker(markers, vehicle, reason, pedCoords, origin, ped)
         end
     end
@@ -494,6 +510,19 @@ local function tamperVehicle(target)
     notifyResult(notification)
 end
 
+---@param target TamperTarget
+local function startTamper(target)
+    -- Set before anything yields, so a second press can not start another tamper
+    tampering = true
+    hideMarkers()
+
+    -- Key and target callbacks come in from zyke_lib and the tamper yields through the walk and the progress bar
+    CreateThread(function()
+        tamperVehicle(target)
+        tampering = false
+    end)
+end
+
 local function onTamperPressed()
     -- Read at the press, so it is the engine shown on the marker right now
     local id = Z.getAimedInterestPoint(markerSet)
@@ -510,22 +539,37 @@ local function onTamperPressed()
         return
     end
 
-    -- Set before anything yields, so a second press can not start another tamper
-    tampering = true
-    hideMarkers()
+    startTamper(target)
+end
 
-    -- Key callbacks come in from zyke_lib and the tamper yields through the walk and the progress bar
-    CreateThread(function()
-        tamperVehicle(target)
-        tampering = false
-    end)
+-- Vehicles only this client knows about can't be validated by the server, and ignored ones are left
+-- alone completely
+---@param vehicle integer
+---@return boolean canInteract
+local function canTargetVehicle(vehicle)
+    if (not canPedTamper(PlayerPedId())) then return false end
+    if (not NetworkGetEntityIsNetworked(vehicle) or IsVehicleIgnored(vehicle)) then return false end
+    if (not isCarryingItems()) then return false end
+
+    return isEngineOffered(GetBurnBlockReason(vehicle))
+end
+
+---@param data table | integer @ ox_target passes a table with the entity, qb-target only the entity
+local function onTargetSelected(data)
+    local vehicle = type(data) == "table" and data.entity or data
+    if (type(vehicle) ~= "number" or not DoesEntityExist(vehicle)) then return end
+    if (not canPedTamper(PlayerPedId())) then return end
+
+    local reason = GetBurnBlockReason(vehicle)
+    if (reason) then Z.notify(reason) return end
+
+    startTamper(createTarget(vehicle))
 end
 
 local function onCancelPressed()
     if (tampering) then cancelled = true end
 end
 
-Z.registerKey(tamperKey, "E", T("keybind:tamper"), onTamperPressed)
 Z.registerKey(cancelKey, "X", T("keybind:cancelTamper"), onCancelPressed)
 Z.registerKey(cancelMouseKey, "MOUSE_RIGHT", T("keybind:cancelTamper"), onCancelPressed, nil, "mouse_button")
 
@@ -575,6 +619,30 @@ RegisterNetEvent("zyke_burncars:BurnVehicle", function(netId)
 end)
 
 CreateThread(function()
+    -- zyke_lib picks the target system while it loads
+    while (not HasLoaderFinished) do Wait(100) end
+
+    if (Config.Settings.interaction == "target") then
+        local targetId = Z.target.addGlobalVehicle({
+            distance = markerDistance,
+            options = {
+                {
+                    icon = "fas fa-fire",
+                    label = tamperLabel,
+                    canInteract = canTargetVehicle,
+                    onSelect = onTargetSelected,
+                },
+            },
+        })
+
+        if (targetId) then return end
+
+        print(("^3[%s] interaction is set to \"target\" but neither ox_target nor qb-target is started, using interaction points^7"):format(ResName))
+    end
+
+    -- Only registered for interaction points, so target mode does not list a key that does nothing
+    Z.registerKey(tamperKey, "E", T("keybind:tamper"), onTamperPressed)
+
     while (true) do
         refreshMarkers()
         Wait(refreshInterval)

@@ -13,6 +13,11 @@ Config.Settings = {
         {name = "lighter_fluid", amount = 1, remove = true},
     },
 
+    -- How players pick an engine to tamper with:
+    -- "point" shows the tamper key on each engine cover through zyke_lib interest points
+    -- "target" adds a tamper option to the target menu instead, needs ox_target or qb-target and falls back to points without one
+    interaction = "point",
+
     -- true marks every engine nearby; one that can't be tampered with says why on its marker, and
     -- shakes with a notification when used. false only marks engines that can be tampered with right now
     alwaysShowMarkers = true,
