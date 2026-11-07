@@ -62,13 +62,12 @@ local fireSpread = 25
 -- The vehicle stays invincible this long after the fire is put out, so it does not blow up straight after
 local invincibleTailMs = 1000
 
-local tamperLabel = T("tamper")
----@type table<string, string> @ Block reason -> marker hint
+---@type table<string, string> @ Block reason -> marker hint locale key
 local reasonHints = {
-    vehicleProtected = T("hint:vehicleProtected"),
-    vehicleMoving = T("hint:vehicleMoving"),
-    vehicleOccupied = T("hint:vehicleOccupied"),
-    vehicleRunning = T("hint:vehicleRunning"),
+    vehicleProtected = "hint:vehicleProtected",
+    vehicleMoving = "hint:vehicleMoving",
+    vehicleOccupied = "hint:vehicleOccupied",
+    vehicleRunning = "hint:vehicleRunning",
 }
 
 ---@type table<string, TamperTarget>
@@ -79,6 +78,9 @@ local movementReleased = false
 local markersShown = false
 local hasItems = false
 local nextItemCheck = 0
+local tamperKeyRegistered = false
+---@type integer | nil
+local vehicleTargetId
 
 ---@param ped integer
 ---@return boolean canTamper
@@ -220,8 +222,8 @@ local function addEngineMarker(markers, vehicle, reason, pedCoords, origin, ped)
         entity = vehicle,
         offset = offset,
         key = "+" .. tamperKey,
-        label = tamperLabel,
-        hint = reason and reasonHints[reason] or nil,
+        label = T("tamper"),
+        hint = reason and reasonHints[reason] and T(reasonHints[reason]) or nil,
         opacity = reason and blockedOpacity or nil,
         reach = tamperReach,
     }
@@ -570,8 +572,46 @@ local function onCancelPressed()
     if (tampering) then cancelled = true end
 end
 
-Z.registerKey(cancelKey, "X", T("keybind:cancelTamper"), onCancelPressed)
-Z.registerKey(cancelMouseKey, "MOUSE_RIGHT", T("keybind:cancelTamper"), onCancelPressed, nil, "mouse_button")
+local function registerCancelKeys()
+    Z.registerKey(cancelKey, "X", T("keybind:cancelTamper"), onCancelPressed)
+    Z.registerKey(cancelMouseKey, "MOUSE_RIGHT", T("keybind:cancelTamper"), onCancelPressed, nil, "mouse_button")
+end
+
+-- Only registered for interaction points, so target mode does not list a key that does nothing
+local function registerTamperKey()
+    tamperKeyRegistered = true
+
+    Z.registerKey(tamperKey, "E", T("keybind:tamper"), onTamperPressed)
+end
+
+---@return integer | nil targetId
+local function addVehicleTarget()
+    return Z.target.addGlobalVehicle({
+        distance = markerDistance,
+        options = {
+            {
+                icon = "fas fa-fire",
+                label = T("tamper"),
+                canInteract = canTargetVehicle,
+                onSelect = onTargetSelected,
+            },
+        },
+    })
+end
+
+registerCancelKeys()
+
+-- Key descriptions and the target option keep the text they were registered with
+Z.onLanguageChange(function()
+    registerCancelKeys()
+
+    if (tamperKeyRegistered) then registerTamperKey() end
+    if (not vehicleTargetId) then return end
+
+    Z.target.remove(vehicleTargetId)
+
+    vehicleTargetId = addVehicleTarget()
+end)
 
 -- Only the owner's door state replicates, so the server sends this to whoever owns the vehicle
 ---@param netId NetId
@@ -623,25 +663,13 @@ CreateThread(function()
     while (not HasLoaderFinished) do Wait(100) end
 
     if (Config.Settings.interaction == "target") then
-        local targetId = Z.target.addGlobalVehicle({
-            distance = markerDistance,
-            options = {
-                {
-                    icon = "fas fa-fire",
-                    label = tamperLabel,
-                    canInteract = canTargetVehicle,
-                    onSelect = onTargetSelected,
-                },
-            },
-        })
-
-        if (targetId) then return end
+        vehicleTargetId = addVehicleTarget()
+        if (vehicleTargetId) then return end
 
         print(("^3[%s] interaction is set to \"target\" but neither ox_target nor qb-target is started, using interaction points^7"):format(ResName))
     end
 
-    -- Only registered for interaction points, so target mode does not list a key that does nothing
-    Z.registerKey(tamperKey, "E", T("keybind:tamper"), onTamperPressed)
+    registerTamperKey()
 
     while (true) do
         refreshMarkers()
