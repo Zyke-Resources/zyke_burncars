@@ -3,7 +3,7 @@ game "gta5"
 author "https://discord.zykeresources.com"
 description "Tamper with vehicle engines and set them on fire"
 lua54 "yes"
-version "2.0.0.1"
+version "2.0.1"
 
 -- zyke_lib systems this resource uses, zyke_lib only waits for these while it starts
 zyke_systems {
